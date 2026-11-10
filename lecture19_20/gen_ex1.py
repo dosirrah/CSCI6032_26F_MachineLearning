@@ -3,10 +3,11 @@ import pandas as pd
 
 np.random.seed(42)
 
-mean_0 = [-1, 1]
+# Means sit off the origin so the decision boundary is visibly away from it.
+mean_0 = [0, 1.5]
 cov_0 = [[1, -0.8],
          [-0.8, 1]]
-mean_1 = [2, 2]
+mean_1 = [3, 2.5]
 cov_1 = [[1, 0],
          [0, 1]]
 

@@ -4,6 +4,7 @@ from sklearn.datasets import make_circles
 
 # Generate concentric circles dataset using make_circles
 X, y = make_circles(n_samples=200, factor=0.5, noise=0.1, random_state=0)
+X += 1.5  # move the circles off the origin
 data_circles = pd.DataFrame(np.hstack((X, y.reshape(-1, 1))), columns=['$x_1$', '$x_2$', 'target'])
 
 # Save to CSV

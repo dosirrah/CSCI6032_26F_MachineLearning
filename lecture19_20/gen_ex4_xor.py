@@ -14,7 +14,8 @@ X = np.empty((0, 2))
 y = np.empty(0, dtype=int)
 
 # Define XOR logic
-xor_points = [(0, 0), (1, 1), (0, 1), (1, 0)]
+# Centered at (1.5, 1.5) rather than (0.5, 0.5), away from the origin.
+xor_points = [(1, 1), (2, 2), (1, 2), (2, 1)]
 labels = [0, 0, 1, 1]  # Points (0,0) and (1,1) are in class 0, others in class 1
 
 for (x1, x2), label in zip(xor_points, labels):

@@ -15,9 +15,14 @@ class LogisticRegressionSGD:
     def sigmoid(self, z):
         return 1 / (1 + np.exp(-z))
 
-    def initialize_parameters(self, n_features):
-        # Initialize theta (weights + bias as the first element)
-        theta = np.random.randn(n_features + 1)
+    def initialize_parameters(self, n_features, theta=None):
+        # Initialize theta (weights + bias as the first element), randomly
+        # unless an initial theta = (b, w_1, ..., w_n) is given.
+        if theta is None:
+            theta = np.random.randn(n_features + 1)
+        else:
+            theta = np.array(theta, dtype=float)
+            assert theta.shape == (n_features + 1,), "theta needs b plus one weight per feature"
         self._theta_history.append(theta)
     
     def gradient(self, x, y):
@@ -148,6 +153,10 @@ def plot_decision_boundary(X, y, model, step, sample_index=None) -> int:
     x_min, x_max = X[:, 0].min(), X[:, 0].max()
     y_min, y_max = X[:, 1].min(), X[:, 1].max()
 
+    # Keep the origin in view so the origin-to-boundary vector is always visible.
+    x_min, x_max = min(x_min, 0), max(x_max, 0)
+    y_min, y_max = min(y_min, 0), max(y_max, 0)
+
     # I want the axes to have the same scale so let's take the larger of the two
     # and use it both directions, and that the contours and meshgrid span 
     # entire plot.
@@ -189,15 +198,17 @@ def plot_decision_boundary(X, y, model, step, sample_index=None) -> int:
 
     print(f"theta: {theta}")
     
-    # Calculate offset position along x_1 or x_2 to represent bias
-    offset_position = np.array([0., 0.])
-    if theta[0] != 0:
-        offset_position[0] = -theta[0] / theta[1]
-        offset_label = f"$-\Theta_0 / \Theta_1$ = {-theta[0] / theta[1]:.3f}"
-
-    elif theta[1] != 0:
-        offset_position[1] = -theta[0] / theta[2]
-        offset_label = f"$-\Theta_0 / \Theta_2$ = { -theta[0] / theta[2]:.3f}"
+    # Offset the normal to the point q on the boundary closest to the origin
+    # (the foot of the perpendicular from the origin).  With b = Theta_0 and
+    # W = (Theta_1, Theta_2),
+    #     q = -Theta_0 W / ||W||^2,
+    # so q has signed length -Theta_0/||W|| along the unit normal W/||W||:
+    # the bias, scaled by 1/||W||, is the plane's distance from the origin.
+    W = np.array([theta[1], theta[2]])
+    W_norm = np.linalg.norm(W)
+    offset_position = -theta[0] * W / W_norm**2
+    offset_label = (r"$-b / \|W\|$ = "
+                    f"{-theta[0] / W_norm:.3f}")
 
     # dotted line showing the shift
     print(f"offset_position: {offset_position}")
@@ -205,12 +216,23 @@ def plot_decision_boundary(X, y, model, step, sample_index=None) -> int:
     # Plot shifted surface normal vector at decision boundary level
     ax.quiver(offset_position[0], offset_position[1], theta[1], theta[2], angles='xy',
               scale_units='xy', scale=1, color="black", alpha=0.7,
-              label="Surface Normal (biased)")
+              label="Surface Normal (biased)", zorder=4)
 
     plt.annotate(
         '', xy=(offset_position[0], offset_position[1]), xytext=(0, 0),
         arrowprops=dict(arrowstyle='<->', color='white', linewidth=3)
     )
+
+    # Right-angle mark where the origin-to-q segment meets the boundary.
+    q_dist = np.linalg.norm(offset_position)
+    s = 0.03 * (x_max - x_min)
+    if q_dist > 2 * s:
+        u = -offset_position / q_dist          # from q toward the origin
+        t = np.array([-u[1], u[0]])            # along the boundary
+        corner = np.array([offset_position + s * u,
+                           offset_position + s * (u + t),
+                           offset_position + s * t])
+        ax.plot(corner[:, 0], corner[:, 1], color='white', linewidth=1.5)
 
     mid = offset_position / 2
            
@@ -299,6 +321,11 @@ def main():
     # using a larger learning rate allows me to show significant changes to parameters
     # in a single update step.
     parser.add_argument('--alpha', type=float, default=0.4, help="learning rate")
+
+    # Optional starting point instead of a random one.  A CSV can also suggest
+    # one in its first line, e.g. "# theta: -0.5 0.7 0.7"; --theta overrides it.
+    parser.add_argument('--theta', type=float, nargs='+', default=None, metavar='THETA',
+                        help="initial theta: the bias b followed by the weights w_1 w_2 ...")
     
     # Parse the arguments
     args = parser.parse_args()
@@ -310,7 +337,12 @@ def main():
     # Load data from the specified file
     # Assuming the file is a CSV with X and y
     import pandas as pd
-    data = pd.read_csv(args.file)
+    with open(args.file) as f:
+        first_line = f.readline()
+    if args.theta is None and first_line.startswith("# theta:"):
+        args.theta = [float(t) for t in first_line.split(":", 1)[1].split()]
+        print(f"Starting from the theta suggested in {args.file}: {args.theta}")
+    data = pd.read_csv(args.file, comment='#')
     X = data.iloc[:, :-1].values  # All columns except the last as features
     y = data.iloc[:, -1].values   # The last column as target
 
@@ -322,7 +354,7 @@ def main():
     
     # X is the "design matrix" where each row is a data point and 
     # the columns are features.
-    model.initialize_parameters(X.shape[1])  # X.shape[0] is num rows. X.shape[1] = num columns
+    model.initialize_parameters(X.shape[1], args.theta)  # X.shape[0] is num rows. X.shape[1] = num columns
     
     step = i = 0
     while True:
