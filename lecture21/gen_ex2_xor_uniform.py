@@ -43,5 +43,5 @@ plt.show()
 
 # Save to CSV
 data_xor = pd.DataFrame(np.hstack((X, y.reshape(-1, 1))), columns=['$x_1$', '$x_2$', 'target'])
-data_xor.to_csv('ex5_xor_uniform.csv', index=False)
-print("XOR dataset saved as 'ex5_xor_uniform.csv'.")
+data_xor.to_csv('ex2_xor_uniform.csv', index=False)
+print("XOR dataset saved as 'ex2_xor_uniform.csv'.")
